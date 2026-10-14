@@ -117,6 +117,9 @@ app.get("/auth/open-api/generate-schema", async (c) => {
 
 app.on(["POST", "GET"], "/auth/*", async (c) => auth.handler(c.req.raw));
 
+// Better Auth prefixes its cookies with `__Secure-` when it is served over HTTPS.
+const sessionCookieName = `${ENV_SERVER.VITE_SERVER_URL.startsWith("https://") ? "__Secure-" : ""}better-auth.session_token`;
+
 export const openApiHandler = new OpenAPIHandler(appRouter, {
   interceptors: [
     onError((error, { context }) => {
@@ -160,7 +163,7 @@ export const openApiHandler = new OpenAPIHandler(appRouter, {
                   authCookie: {
                     description: `**(optional)** Session cookie from signing-in, required for protected endpoints [View Auth Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference)`,
                     in: "cookie",
-                    name: "better_auth.session_token",
+                    name: sessionCookieName,
                     type: "apiKey"
                   }
                 }

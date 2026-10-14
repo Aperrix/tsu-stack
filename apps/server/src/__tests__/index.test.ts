@@ -13,12 +13,12 @@ vi.mock("@tsu-stack/db", async (importOriginal) => {
   return { ...original, checkIsDbReady: vi.fn().mockResolvedValue(false) };
 });
 
-async function loadApp(options: { enableDocs: boolean }) {
+async function loadApp(options: { enableDocs: boolean; serverUrl?: string }) {
   vi.resetModules();
   vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:1/tsu-stack-test");
   vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-at-least-32-characters-long");
-  vi.stubEnv("VITE_SERVER_URL", "http://localhost:5000/server");
+  vi.stubEnv("VITE_SERVER_URL", options.serverUrl ?? "http://localhost:5000/server");
   vi.stubEnv("VITE_WEB_URL", "http://localhost:3000/web");
   vi.stubEnv("ENABLE_OPEN_API_DOCS", String(options.enableDocs));
   return import("#@/index");
@@ -52,6 +52,22 @@ describe("OpenAPI documentation", () => {
       const { app } = await loadApp({ enableDocs: true });
 
       expect((await app.request(path)).status).toBe(200);
+    }
+  );
+});
+
+describe("OpenAPI spec", () => {
+  it.each(["http://localhost:5000/server", "https://api.example.com/server"])(
+    "documents the session cookie Better Auth sets for %s",
+    async (serverUrl) => {
+      const { app } = await loadApp({ enableDocs: true, serverUrl });
+      const { auth } = await import("@tsu-stack/auth/index");
+      const { authCookies } = await auth.$context;
+
+      const response = await app.request("/server/docs/spec.json");
+      const spec = await response.json();
+
+      expect(spec.components.securitySchemes.authCookie.name).toBe(authCookies.sessionToken.name);
     }
   );
 });
