@@ -5,6 +5,7 @@ import {
   type EvlogVariables
 } from "evlog/hono";
 import { type MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -29,7 +30,10 @@ const ClientLogPayloadSchema = z.object({
     .optional()
 });
 
-const ClientLogBatchSchema = z.array(ClientLogPayloadSchema);
+// The browser transport sends batches of 25 events.
+const MAX_EVENTS_PER_BATCH = 50;
+
+const ClientLogBatchSchema = z.array(ClientLogPayloadSchema).max(MAX_EVENTS_PER_BATCH);
 
 /**
  * Hono app variables added by `honoLoggerMiddleware()`.
@@ -90,26 +94,38 @@ export function honoLoggerMiddleware(options?: HonoLoggerMiddlewareOptions): Mid
 export function honoLogIngestionMiddleware(
   options: HonoLogIngestionOptions = {}
 ): MiddlewareHandler {
-  const maxPayloadBytes = options.maxPayloadBytes ?? 64 * 1024;
-
-  return createMiddleware(async (c) => {
-    const contentLength = Number(c.req.header("content-length") ?? 0);
-    if (contentLength > maxPayloadBytes) {
+  // Unlike a `Content-Length` check, `bodyLimit` also caps chunked bodies, which carry no length.
+  const limitBody = bodyLimit({
+    maxSize: options.maxPayloadBytes ?? 64 * 1024,
+    onError: () => {
       throw new HTTPException(413, { message: "Log payload is too large" });
     }
+  });
 
-    const result = await c.req.json().then(
-      (body) => ClientLogBatchSchema.safeParse(body),
-      () => {
-        throw new HTTPException(400, { message: "Invalid JSON body" });
-      }
-    );
-    const batch = result.success ? result.data : [];
-    for (const payload of batch) {
-      emitClientLog(payload);
+  return createMiddleware(async (c) => {
+    // Cross-site forms can only send `text/plain`, `multipart/form-data` or
+    // `application/x-www-form-urlencoded` without a CORS preflight.
+    if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
+      throw new HTTPException(415, { message: "Log events must be sent as application/json" });
     }
 
-    return c.body(null, 204);
+    let response: Response | undefined;
+    await limitBody(c, async () => {
+      const result = await c.req.json().then(
+        (body) => ClientLogBatchSchema.safeParse(body),
+        () => {
+          throw new HTTPException(400, { message: "Invalid JSON body" });
+        }
+      );
+      const batch = result.success ? result.data : [];
+      for (const payload of batch) {
+        emitClientLog(payload);
+      }
+
+      response = c.body(null, 204);
+    });
+
+    return response;
   });
 }
 

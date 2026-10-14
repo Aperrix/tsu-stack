@@ -845,7 +845,7 @@ importers:
         version: 6.1.7
       evlog:
         specifier: 'catalog:'
-        version: 2.30.1(@orpc/server@1.15.5(crossws@0.4.12(srvx@0.11.22))(ws@8.21.1))(@tanstack/start-client-core@1.170.37)(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(hono@4.13.13)(jiti@2.7.0)(ofetch@1.5.1)(publint@0.3.25)(react@19.3.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
+        version: 2.30.1(@orpc/server@1.15.5(crossws@0.4.12(srvx@0.11.22))(ws@8.21.1))(@tanstack/start-client-core@1.170.37)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(jiti@2.7.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(hono@4.13.13)(ofetch@1.5.1)(react@19.3.0)
       hono:
         specifier: 'catalog:'
         version: 4.13.13
@@ -862,6 +862,12 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(jiti@2.7.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(@vitest/ui@5.0.3)(esbuild@0.28.1)(jiti@2.7.0)(playwright@1.64.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)
 
   packages/seo:
     devDependencies:
@@ -5744,6 +5750,7 @@ packages:
       ofetch: ^1.5.1
       react: '>=19.3.0'
       react-router: '>=7.18.4'
+      vite: ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@nestjs/common':
         optional: true
@@ -5778,6 +5785,8 @@ packages:
       react:
         optional: true
       react-router:
+        optional: true
+      vite:
         optional: true
 
   execa@10.1.0:
@@ -11568,37 +11577,14 @@ snapshots:
 
   esutils@2.0.3: {}
 
-  evlog@2.30.1(@orpc/server@1.15.5(crossws@0.4.12(srvx@0.11.22))(ws@8.21.1))(@tanstack/start-client-core@1.170.37)(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(hono@4.13.13)(jiti@2.7.0)(ofetch@1.5.1)(publint@0.3.25)(react@19.3.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0):
-    dependencies:
-      vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(jiti@2.7.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
+  evlog@2.30.1(@orpc/server@1.15.5(crossws@0.4.12(srvx@0.11.22))(ws@8.21.1))(@tanstack/start-client-core@1.170.37)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(jiti@2.7.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0))(hono@4.13.13)(ofetch@1.5.1)(react@19.3.0):
     optionalDependencies:
       '@orpc/server': 1.15.5(crossws@0.4.12(srvx@0.11.22))(ws@8.21.1)
       '@tanstack/start-client-core': 1.170.37
       hono: 4.13.13
       ofetch: 1.5.1
       react: 19.3.0
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@types/node'
-      - '@typescript/native-preview'
-      - '@vitejs/devtools'
-      - '@volar/typescript'
-      - '@vue/language-core'
-      - esbuild
-      - jiti
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - vue-tsc
-      - yaml
+      vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@26.6.5)(@typescript/native-preview@7.0.0-dev.20260707.2)(esbuild@0.28.1)(jiti@2.7.0)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.0)'
 
   execa@10.1.0:
     dependencies:
