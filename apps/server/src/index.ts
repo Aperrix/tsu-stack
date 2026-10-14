@@ -82,10 +82,16 @@ app.onError((error, c) => {
  * @see https://better-auth.com/docs/plugins/open-api#configuration
  */
 app.on(["POST", "GET"], "/auth/reference", (c) =>
-  c.redirect(`${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference`, 301)
+  ENV_SERVER.ENABLE_OPEN_API_DOCS
+    ? c.redirect(`${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference`, 301)
+    : c.notFound()
 );
 
 app.get("/auth/open-api/generate-schema", async (c) => {
+  if (!ENV_SERVER.ENABLE_OPEN_API_DOCS) {
+    return c.notFound();
+  }
+
   // IMPORTANT: Need to explicitly do this instead of relying on the OpenAPI plugin's built-in schema generation
   // Otherwise, it will 404 with the /auth/* endpoint
   const schema = await generateAuthOpenApiSchema();
@@ -105,55 +111,59 @@ export const openApiHandler = new OpenAPIHandler(appRouter, {
     new SmartCoercionPlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()]
     }),
-    new OpenAPIReferencePlugin({
-      docsConfig: () => {
-        const apiBasePath = new URL(ENV_SERVER.VITE_SERVER_URL).pathname;
-        return {
-          content: undefined,
-          metaData: {
-            description: "Documentation for the @tsu-stack/server API.",
-            title: "@tsu-stack/server API Documentation"
-          },
-          sources: [
-            {
-              title: "API Reference",
-              url: join(apiBasePath, "docs", "spec.json")
+    ...(ENV_SERVER.ENABLE_OPEN_API_DOCS
+      ? [
+          new OpenAPIReferencePlugin({
+            docsConfig: () => {
+              const apiBasePath = new URL(ENV_SERVER.VITE_SERVER_URL).pathname;
+              return {
+                content: undefined,
+                metaData: {
+                  description: "Documentation for the @tsu-stack/server API.",
+                  title: "@tsu-stack/server API Documentation"
+                },
+                sources: [
+                  {
+                    title: "API Reference",
+                    url: join(apiBasePath, "docs", "spec.json")
+                  },
+                  {
+                    title: "Auth API Reference",
+                    url: join(apiBasePath, "auth", "open-api", "generate-schema")
+                  }
+                ],
+                theme: "deepSpace"
+              };
             },
-            {
-              title: "Auth API Reference",
-              url: join(apiBasePath, "auth", "open-api", "generate-schema")
-            }
-          ],
-          theme: "deepSpace"
-        };
-      },
-      docsPath: "/docs",
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-      specGenerateOptions: {
-        components: {
-          securitySchemes: {
-            authCookie: {
-              description: `**(optional)** Session cookie from signing-in, required for protected endpoints [View Auth Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference)`,
-              in: "cookie",
-              name: "better_auth.session_token",
-              type: "apiKey"
-            }
-          }
-        },
-        info: {
-          description: `This is the API for @tsu-stack/server.\n## Usage\nFor authentication, you can sign in via the \`/sign-in\` endpoint in [the Auth Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference). Include the session cookie in subsequent requests to access protected endpoints.\n## Resources\n - [Official Website](${ENV_SERVER.VITE_WEB_URL})\n - [Auth API Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference)`,
-          title: "@tsu-stack/server API",
-          version: ENV_SERVER.SOURCE_COMMIT
-        },
-        servers: [
-          {
-            description: "Primary API Server",
-            url: ENV_SERVER.VITE_SERVER_URL
-          }
+            docsPath: "/docs",
+            schemaConverters: [new ZodToJsonSchemaConverter()],
+            specGenerateOptions: {
+              components: {
+                securitySchemes: {
+                  authCookie: {
+                    description: `**(optional)** Session cookie from signing-in, required for protected endpoints [View Auth Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference)`,
+                    in: "cookie",
+                    name: "better_auth.session_token",
+                    type: "apiKey"
+                  }
+                }
+              },
+              info: {
+                description: `This is the API for @tsu-stack/server.\n## Usage\nFor authentication, you can sign in via the \`/sign-in\` endpoint in [the Auth Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference). Include the session cookie in subsequent requests to access protected endpoints.\n## Resources\n - [Official Website](${ENV_SERVER.VITE_WEB_URL})\n - [Auth API Reference](${ENV_SERVER.VITE_SERVER_URL}/docs#auth-api-reference)`,
+                title: "@tsu-stack/server API",
+                version: ENV_SERVER.SOURCE_COMMIT
+              },
+              servers: [
+                {
+                  description: "Primary API Server",
+                  url: ENV_SERVER.VITE_SERVER_URL
+                }
+              ]
+            },
+            specPath: "/docs/spec.json"
+          })
         ]
-      },
-      specPath: "/docs/spec.json"
-    }),
+      : []),
     new RethrowHandlerPlugin({
       filter: (error) => !(error instanceof ORPCError)
     })
@@ -183,19 +193,7 @@ app.use("/*", async (c, next) => {
     return c.newResponse(rpcResult.response.body, rpcResult.response);
   }
 
-  // OpenAPI docs at /docs/*
-  if (ENV_SERVER.ENABLE_OPEN_API_DOCS) {
-    const docsResult = await openApiHandler.handle(c.req.raw, {
-      context,
-      prefix: join(new URL(ENV_SERVER.VITE_SERVER_URL).pathname, "docs") as `/${string}`
-    });
-
-    if (docsResult.matched) {
-      return c.newResponse(docsResult.response.body, docsResult.response);
-    }
-  }
-
-  // OpenAPI REST API at /*
+  // OpenAPI REST API at /* (and the docs at /docs/* when OpenAPIReferencePlugin is registered)
   const openApiResult = await openApiHandler.handle(c.req.raw, {
     context,
     prefix: new URL(ENV_SERVER.VITE_SERVER_URL).pathname as `/${string}`
