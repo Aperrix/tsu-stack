@@ -131,7 +131,13 @@ export default defineConfig({
       consolePiping: { enabled: false }
     }),
     mdx(),
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    cloudflare({
+      viteEnvironment: { name: "ssr" },
+      // Workers have no NODE_ENV or SOURCE_COMMIT at runtime unless they are bound: reuse the build-time values.
+      config: {
+        vars: { NODE_ENV: ENV_WEB_SERVER.NODE_ENV, SOURCE_COMMIT: ENV_WEB_SERVER.SOURCE_COMMIT }
+      }
+    }),
     tanstackStart({
       pages: PAGES_PRERENDER_CONFIG,
       prerender: {
