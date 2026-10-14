@@ -75,6 +75,17 @@ export async function migrateDatabase(): Promise<void> {
     return;
   }
 
+  // Workers have no filesystem to read the migration files from (`import.meta.dirname` is undefined):
+  // apply them with `vp run db:migrate` instead.
+  if (import.meta.dirname === undefined) {
+    log.emit({
+      environment: ENV_SERVER.NODE_ENV,
+      event: "database_migration_skipped",
+      reason: "no_filesystem"
+    });
+    return;
+  }
+
   for (let attempt = 1; attempt <= MIGRATION_MAX_ATTEMPTS; attempt++) {
     try {
       await migrate(createDb(), {
