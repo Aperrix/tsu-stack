@@ -16,7 +16,6 @@ type RequestContext = {
     ip?: string;
     method: string;
     path: string;
-    query?: Record<string, string>;
   };
 };
 
@@ -56,16 +55,15 @@ function injectRequestIdMiddleware(options: RequestIdOptions = {}) {
 const injectRequestMiddleware = createMiddleware().server(({ next, request }) => {
   const url = new URL(request.url);
   const realIp = getRealIpFromHeaders(request.headers);
-  const query = Object.fromEntries(url.searchParams.entries());
 
+  // Query strings are deliberately not logged: they can carry tokens, emails and arbitrary client input.
   return next({
     context: {
       request: {
         hostname: url.hostname,
         ip: normalizeIp(realIp),
         method: request.method,
-        path: url.pathname,
-        query: Object.keys(query).length > 0 ? query : undefined
+        path: url.pathname
       }
     }
   });
