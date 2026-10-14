@@ -4,6 +4,7 @@ import {
   createError as createEvlogError,
   createLogger as createEvlogLogger,
   createRequestLogger as createEvlogRequestLogger,
+  EvlogError,
   initLogger as initEvlogLogger,
   log as evlog,
   parseError as parseEvlogError,
@@ -142,7 +143,22 @@ export const log = evlog;
 export const createError = createEvlogError;
 
 /**
- * Convert unknown thrown values into structured, response-safe error fields.
+ * Whether a thrown value was created with `createError`, so its message is meant for clients.
+ * Any other error (database, network, library) can carry SQL, parameters or internal hosts.
+ *
+ * @example
+ * ```ts
+ * import { isEvlogError } from "@tsu-stack/logger/server";
+ *
+ * if (!isEvlogError(error)) return c.json({ message: "Internal Server Error" }, 500);
+ * ```
+ */
+export const isEvlogError = (error: unknown): error is EvlogError => EvlogError.isEvlogError(error);
+
+/**
+ * Convert unknown thrown values into structured error fields. For errors that were not created
+ * with `createError` the message is the raw `Error` message: check `isEvlogError` before
+ * returning it to a client.
  *
  * @example
  * ```ts

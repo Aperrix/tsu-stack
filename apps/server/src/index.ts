@@ -11,6 +11,7 @@ import { experimental_RethrowHandlerPlugin as RethrowHandlerPlugin } from "@orpc
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import { type ContentfulStatusCode } from "hono/utils/http-status";
 
 import { createContext } from "@tsu-stack/api/lib/context/hono/create-context";
@@ -18,7 +19,13 @@ import { appRouter } from "@tsu-stack/api/routers/index";
 import { auth, generateAuthOpenApiSchema } from "@tsu-stack/auth/index";
 import { migrateDatabase } from "@tsu-stack/db";
 import { ENV_SERVER } from "@tsu-stack/env/server/env";
-import { log, parseError } from "@tsu-stack/logger/server";
+import {
+  type RequestLogger,
+  createRequestLogger,
+  isEvlogError,
+  log,
+  parseError
+} from "@tsu-stack/logger/server";
 import {
   honoLogIngestionMiddleware,
   honoLoggerMiddleware,
@@ -61,6 +68,16 @@ app.onError((error, c) => {
     requestLog.error(error);
   } else {
     log.error({ event: "hono_global_error", error });
+  }
+
+  // Only errors thrown on purpose carry a message meant for clients. Anything else (database,
+  // network, library errors) can expose SQL, bound parameters or internal hosts: log it above only.
+  if (error instanceof HTTPException) {
+    return c.json({ message: error.message }, error.status);
+  }
+
+  if (!isEvlogError(error)) {
+    return c.json({ message: "Internal Server Error" }, 500);
   }
 
   const parsed = parseError(error);
@@ -181,7 +198,12 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 app.use("/*", async (c, next) => {
-  const context = await createContext({ context: c, logger: c.get("log") });
+  // Routes excluded from request logging (health checks) have no request logger.
+  const requestLog: RequestLogger | undefined = c.get("log");
+  const context = await createContext({
+    context: c,
+    logger: requestLog ?? createRequestLogger({ method: c.req.method, path: c.req.path })
+  });
 
   // oRPC at /rpc/*
   const rpcResult = await rpcHandler.handle(c.req.raw, {
