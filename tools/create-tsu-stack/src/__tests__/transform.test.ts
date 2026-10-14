@@ -122,4 +122,22 @@ describe("template identity transformation", () => {
     expect(metadata.reproducibleCommand).toContain(`--ref ${"a".repeat(40)}`);
     expect(await readFile(join(root, ".github/README.md"), "utf8")).toContain('href="upstream"');
   });
+
+  it("escapes a free-text display name for every file format it is written to", async () => {
+    const displayName = 'My "Quoted" $& <App> \\ Co';
+    const root = await fixture();
+    await transformTemplate(root, { ...input, displayName }, template, "1.2.3");
+
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain(`# ${displayName}\n`);
+    const appConfig = await readFile(join(root, "apps/web/src/config/app.config.ts"), "utf8");
+    expect(appConfig).toContain(`longName: ${JSON.stringify(displayName)}`);
+    expect(appConfig).toContain(`shortName: ${JSON.stringify(displayName)}`);
+    for (const locale of ["en", "de"]) {
+      const messages = await readFile(join(root, `packages/i18n/messages/${locale}.json`), "utf8");
+      expect(JSON.parse(messages)).toEqual({ name: displayName });
+    }
+    expect(await readFile(join(root, ".github/README.md"), "utf8")).toContain(
+      ">My &quot;Quoted&quot; $&amp; &lt;App&gt; \\ Co</a>"
+    );
+  });
 });

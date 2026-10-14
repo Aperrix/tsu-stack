@@ -62,6 +62,14 @@ function isTextFile(path: string): boolean {
   return TEXT_FILENAMES.has(name) || TEXT_EXTENSIONS.has(extname(name));
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 async function replaceInFile(path: string, replacer: (content: string) => string): Promise<void> {
   if (!(await pathExists(path))) return;
   const content = await readFile(path, "utf8");
@@ -188,19 +196,25 @@ export async function transformTemplate(
   await replaceInFile(join(root, "packages", "env", ".env.example"), (content) =>
     content.replaceAll('/tsu-stack"', `/${input.projectName}"`)
   );
+  // The display name is free text: use replacer functions so `$&`-style sequences stay literal and
+  // escape it for the format of each file it lands in.
+  const displayNameInJson = JSON.stringify(input.displayName).slice(1, -1);
   await replaceInFile(join(root, "AGENTS.md"), (content) =>
-    content.replace(/^# tsu-stack$/mu, `# ${input.displayName}`)
+    content.replace(/^# tsu-stack$/mu, () => `# ${input.displayName}`)
   );
   await replaceInFile(join(root, "apps", "web", "src", "config", "app.config.ts"), (content) =>
     content
-      .replace(/longName: "[^"]*tsu!stack"/u, `longName: ${JSON.stringify(input.displayName)}`)
-      .replace(/shortName: "tsu!stack"/u, `shortName: ${JSON.stringify(input.displayName)}`)
+      .replace(
+        /longName: "[^"]*tsu!stack"/u,
+        () => `longName: ${JSON.stringify(input.displayName)}`
+      )
+      .replace(/shortName: "tsu!stack"/u, () => `shortName: ${JSON.stringify(input.displayName)}`)
   );
   await replaceInFile(join(root, "packages", "i18n", "messages", "en.json"), (content) =>
-    content.replaceAll("tsu-stack", input.displayName)
+    content.replaceAll("tsu-stack", () => displayNameInJson)
   );
   await replaceInFile(join(root, "packages", "i18n", "messages", "de.json"), (content) =>
-    content.replaceAll("tsu-stack", input.displayName)
+    content.replaceAll("tsu-stack", () => displayNameInJson)
   );
   await replaceInFile(
     join(root, "packages", "i18n", "src", "tanstack-start", "lib", "validate-navigate-to.ts"),
@@ -208,8 +222,8 @@ export async function transformTemplate(
   );
   await replaceInFile(join(root, ".github", "README.md"), (content) =>
     content
-      .replace(">tsu!stack</a>", `>${input.displayName}</a>`)
-      .replace('alt="tsu!stack Logo"', `alt="${input.displayName} Logo"`)
+      .replace(">tsu!stack</a>", () => `>${escapeHtml(input.displayName)}</a>`)
+      .replace('alt="tsu!stack Logo"', () => `alt="${escapeHtml(input.displayName)} Logo"`)
   );
 
   if (variant.transformHook.mergedLocalServer) {
